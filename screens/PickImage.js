@@ -1,0 +1,93 @@
+import * as React from "react";
+import { Button, Image, View, Platform ,Text} from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import * as Permissions from "expo-permissions";
+
+export default class PickImage extends React.Component {
+    constructor(){
+        super();
+        this.state = {
+            image: null,
+            output:''
+          };
+
+    }
+  
+
+  render() {
+    let { image } = this.state;
+
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+        <Button
+          title="Pick an image from camera roll"
+          onPress={this._pickImage}
+        />
+
+        <Text style={{marginTop:150}}>{'Predicted output is:'+this.state.output}</Text>
+      </View>
+    );
+  }
+
+  componentDidMount() {
+    this.getPermissionAsync();
+  }
+
+  getPermissionAsync = async () => {
+    if (Platform.OS !== "web") {
+      const { status } = await Permissions.askAsync(Permissions.CAMERA_ROLL);
+      if (status !== "granted") {
+        alert("Sorry, we need camera roll permissions to make this work!");
+      }
+    }
+  };
+
+  uploadImage = async (uri) => {
+    const data = new FormData();
+    let filename = uri.split("/")[uri.split("/").length - 1]
+    let type = `image/${uri.split('.')[uri.split('.').length - 1]}`
+    const fileToUpload = {
+      uri: uri,
+      name: filename,
+      type: type,
+    };
+    data.append("digit", fileToUpload);
+    var response=await fetch("https://cf0a-2405-201-1005-80e3-3c57-ac2-1218-b0e0.in.ngrok.io/predict-digit", {
+      method:"POST",
+      body:data,
+      headers: {
+        "content-type": "multipart/form-data",
+      },
+    })
+    var responseJson=await response.json(response)
+    var output=responseJson.prediction;
+    this.setState({
+        output:output
+    })
+    //   .then(response => response.json())
+    //   .then((result) => {
+    //     console.log("Success:", result);
+    //   })
+    //   .catch((error) => {
+    //     console.error("Error:", error);
+    //   });
+  };
+
+    _pickImage = async () => {
+      try {
+        let result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.All,
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 1,
+        });
+        if (!result.cancelled) {
+          this.setState({ image: result.data });
+          console.log(result.uri)
+          this.uploadImage(result.uri);
+        }
+      } catch (E) {
+        console.log(E);
+      }
+    };
+}
